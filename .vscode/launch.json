@@ -1,0 +1,85 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "List Webhooks",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/UnifiNotify.py",
+            "args": [
+                "--host", "${config:unifi.host}",
+                "--token", "${config:unifi.token}",
+                "--no-verify-ssl",
+                "list"
+            ]
+        },
+        {
+            "name": "Add Webhook",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/UnifiNotify.py",
+            "args": [
+                "--host", "${config:unifi.host}",
+                "--token", "${config:unifi.token}",
+                "--no-verify-ssl",
+                "add",
+                "--url", "http://${config:unifi.webhookHost}:${config:unifi.webhookPort}",
+                "--secret", "${config:unifi.webhookSecret}"
+            ]
+        },
+        {
+            "name": "Delete Webhook",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/UnifiNotify.py",
+            "args": [
+                "--host", "${config:unifi.host}",
+                "--token", "${config:unifi.token}",
+                "--no-verify-ssl",
+                "delete",
+                "webhook-id-here"
+            ]
+        },
+        {
+            "name": "Listen for Webhooks",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/UnifiNotify.py",
+            "args": [
+                "--host", "${config:unifi.host}",
+                "--token", "${config:unifi.token}",
+                "listen",
+                "--secret", "${config:unifi.webhookSecret}",
+                "--port", "${config:unifi.webhookPort}",
+                "--pushover-token", "${config:pushover.token}",
+                "--pushover-user", "${config:pushover.user}"
+            ]
+        },
+        {
+            "name": "Test webhook (with args)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/UnifiNotify.py",
+            "args": [
+                "test",
+                "--testfile", "${workspaceFolder}/test_event.json",
+                "--pushover-token", "${config:pushover.token}",
+                "--pushover-user", "${config:pushover.user}"
+            ]
+        },
+        {
+            "name": "Test webhook (with config)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/UnifiNotify.py",
+            "args": [
+                "test",
+                "--testfile", "${workspaceFolder}/test_event.json",
+                "--config", ".vscode/settings.json"
+            ]
+        }
+    ]
+}

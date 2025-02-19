@@ -1,0 +1,15 @@
+{
+
+    "data": {
+        "object": {
+            "authentication_type": "PIN",
+            "result": "success"
+        },
+        "device": {
+            "alias": "Front Door"
+        },
+        "actor": {
+            "name": "Test User"
+        }
+    }
+}

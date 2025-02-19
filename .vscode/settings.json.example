@@ -1,0 +1,13 @@
+{
+    "unifi": {
+        "host": "https://your-unifi-host",
+        "token": "your-token-here",
+        "webhookHost": "your-webhook-host",
+        "webhookPort": "8080",
+        "webhookSecret": "your-webhook-secret"
+    },
+    "pushover": {
+        "token": "your-pushover-token",
+        "user": "your-pushover-user"
+    }
+} 
