@@ -54,9 +54,10 @@ class UnifiAccessWebhook:
         return response.json()
 
 class WebhookListener:
-    def __init__(self, secret, port=8080, pushover_user=None, pushover_token=None, test_file=None):
+    def __init__(self, secret, port=8080, webhook_host='0.0.0.0', pushover_user=None, pushover_token=None, test_file=None):
         self.secret = secret
         self.port = port
+        self.webhook_host = webhook_host
         self.pushover_user = pushover_user
         self.pushover_token = pushover_token
         self.test_file = test_file
@@ -157,7 +158,7 @@ class WebhookListener:
                 print(f"Error processing webhook: {e}", file=sys.stderr)
                 return 'Error processing webhook', 400
 
-        app.run(host='0.0.0.0', port=self.port)
+        app.run(host=self.webhook_host, port=self.port)
 
 def list_webhooks(host, token, verify_ssl=True, verbose=False):
     webhook = UnifiAccessWebhook(host, token, verify_ssl=verify_ssl)
@@ -237,6 +238,7 @@ def main():
     listen_parser = subparsers.add_parser('listen', help='Start webhook listener', parents=[parent_parser])
     listen_parser.add_argument('--secret', help='Webhook secret for validation')
     listen_parser.add_argument('--port', type=int, default=8080, help='Port to listen on (default: 8080)')
+    listen_parser.add_argument('--webhook-host', help='Host to listen on (default: 0.0.0.0)')
     listen_parser.add_argument('--pushover-user', help='Pushover user key (found on your Pushover dashboard at pushover.net)')
     listen_parser.add_argument('--pushover-token', help='Pushover application token (create an application at pushover.net/apps/build)')
 
@@ -271,7 +273,8 @@ def main():
                     args.pushover_user = settings.get('pushover', {}).get('user')
                 if not hasattr(args, 'pushover_token') or not args.pushover_token:
                     args.pushover_token = settings.get('pushover', {}).get('token')
-                # Override default port if specified in config
+                if not hasattr(args, 'webhookhost') or not args.webhook_host:
+                    args.webhook_host = settings.get('unifi', {}).get('webhookHost', '0.0.0.0')
                 if not hasattr(args, 'port') or args.port == 8080:  # Only override if not specified or at default
                     args.port = settings.get('unifi', {}).get('webhookPort', 8080)
 
@@ -302,11 +305,12 @@ def main():
         listener = WebhookListener(
             args.secret, 
             args.port,
+            webhook_host=args.webhook_host or '0.0.0.0',
             pushover_user=args.pushover_user,
             pushover_token=args.pushover_token,
             test_file=args.testfile
         )
-        print(f"Starting webhook listener on port {args.port}")
+        print(f"Starting webhook listener on {args.webhook_host or '0.0.0.0'}:{args.port}")
         if args.command == 'listen':
             listener.start()
         elif args.command == 'test':
