@@ -11,6 +11,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 import requests
 from threading import Thread
+import os
 
 # Suppress insecure HTTPS warnings when verify_ssl is False
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -158,17 +159,51 @@ class WebhookListener:
 
         app.run(host='0.0.0.0', port=self.port)
 
-def list_webhooks(host, token, verify_ssl=True):
+def list_webhooks(host, token, verify_ssl=True, verbose=False):
     webhook = UnifiAccessWebhook(host, token, verify_ssl=verify_ssl)
-    print(json.dumps(webhook.list_webhooks(), indent=2))
+    response = webhook.list_webhooks()
+    if verbose:
+        print(json.dumps(response, indent=2))
+    else:
+        for hook in response.get('data', []):
+            print(f"ID: {hook.get('id')} - {hook.get('name')} -> {hook.get('endpoint')}")
 
-def add_webhook(host, token, url, secret, verify_ssl=True):
+def add_webhook(host, token, url, secret, verify_ssl=True, verbose=False):
     webhook = UnifiAccessWebhook(host, token, verify_ssl=verify_ssl)
-    print(json.dumps(webhook.add_webhook(url, secret), indent=2))
+    response = webhook.add_webhook(url, secret)
+    if verbose:
+        print(json.dumps(response, indent=2))
+    else:
+        if 'data' in response:
+            print(f"Added webhook: {response['data'].get('id')}")
+        else:
+            print("Failed to add webhook")
 
-def delete_webhook(host, token, webhook_id, verify_ssl=True):
+def delete_webhook(host, token, webhook_id, verify_ssl=True, verbose=False):
     webhook = UnifiAccessWebhook(host, token, verify_ssl=verify_ssl)
-    print(json.dumps(webhook.delete_webhook(webhook_id), indent=2))
+    response = webhook.delete_webhook(webhook_id)
+    if verbose:
+        print(json.dumps(response, indent=2))
+    else:
+        print(f"Deleted webhook: {webhook_id}")
+
+def load_config():
+    """Load configuration from settings.json in standard locations"""
+    config_paths = [
+        '.vscode/settings.json',                    # Local development
+        '/opt/unifinotify/settings.json',          # Service installation
+        os.path.expanduser('~/settings.json')  # User home
+    ]
+    
+    for path in config_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading {path}: {e}", file=sys.stderr)
+    
+    raise FileNotFoundError("Could not find settings.json in any standard location")
 
 def main():
     parser = argparse.ArgumentParser(description='UniFi Access Webhook Manager')
@@ -176,6 +211,8 @@ def main():
     parser.add_argument('--token', help='UniFi Access API token')
     parser.add_argument('--no-verify-ssl', action='store_false', dest='verify_ssl', 
                        help='Disable SSL certificate verification')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                       help='Show detailed JSON output')
 
     subparsers = parser.add_subparsers(dest='command', required=True)
 
@@ -212,12 +249,11 @@ def main():
     # If config flag is set, try to load settings.json
     if args.command == 'test' and args.config:
         try:
-            with open('.vscode/settings.json', 'r') as f:
-                settings = json.load(f)
-                if not args.pushover_user:
-                    args.pushover_user = settings.get('pushover', {}).get('user')
-                if not args.pushover_token:
-                    args.pushover_token = settings.get('pushover', {}).get('token')
+            settings = load_config()
+            if not args.pushover_user:
+                args.pushover_user = settings.get('pushover', {}).get('user')
+            if not args.pushover_token:
+                args.pushover_token = settings.get('pushover', {}).get('token')
         except Exception as e:
             print(f"Error loading settings.json: {e}", file=sys.stderr)
             sys.exit(1)
@@ -233,11 +269,11 @@ def main():
             parser.error(f"The {args.command} command requires --host and --token")
 
     if args.command == 'list':
-        list_webhooks(args.host, args.token, args.verify_ssl)
+        list_webhooks(args.host, args.token, args.verify_ssl, args.verbose)
     elif args.command == 'add':
-        add_webhook(args.host, args.token, args.url, args.secret, args.verify_ssl)
+        add_webhook(args.host, args.token, args.url, args.secret, args.verify_ssl, args.verbose)
     elif args.command == 'delete':
-        delete_webhook(args.host, args.token, args.webhook_id, args.verify_ssl)
+        delete_webhook(args.host, args.token, args.webhook_id, args.verify_ssl, args.verbose)
     elif args.command == 'listen':
         listener = WebhookListener(
             args.secret, 

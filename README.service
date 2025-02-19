@@ -1,0 +1,58 @@
+# UnifiNotify Service Setup
+
+This guide explains how to set up UnifiNotify as a systemd service on Linux.
+
+## Installation Steps
+
+1. Create service user and group:
+   sudo useradd -r -s /bin/false unifinotify
+
+2. Create and set up application directory:
+   sudo mkdir /opt/unifinotify
+   sudo cp UnifiNotify.py /opt/unifinotify/
+   sudo cp settings.json /opt/unifinotify/
+   sudo chown -R unifinotify:unifinotify /opt/unifinotify
+
+3. Install the service file:
+   sudo cp unifinotify.service /etc/systemd/system/
+
+4. Create settings file:
+   sudo nano /opt/unifinotify/settings.json
+   Add your configuration (example):
+   {
+       "unifi": {
+           "host": "https://your-unifi-host",
+           "token": "your-token",
+           "webhookSecret": "your-secret"
+       },
+       "pushover": {
+           "token": "your-pushover-token",
+           "user": "your-pushover-user"
+       }
+   }
+
+5. Set proper permissions:
+   sudo chmod 600 /opt/unifinotify/settings.json
+
+6. Enable and start the service:
+   sudo systemctl daemon-reload
+   sudo systemctl enable unifinotify
+   sudo systemctl start unifinotify
+
+## Service Management
+
+- Check status: `sudo systemctl status unifinotify`
+- View logs: `sudo journalctl -u unifinotify`
+- Stop service: `sudo systemctl stop unifinotify`
+- Restart service: `sudo systemctl restart unifinotify`
+
+## Troubleshooting
+
+1. Check logs for errors:
+   sudo journalctl -u unifinotify -f
+
+2. Verify permissions:
+   ls -l /opt/unifinotify/
+
+3. Test configuration:
+   sudo -u unifinotify python3 /opt/unifinotify/UnifiNotify.py test --config --testfile test_event.json 

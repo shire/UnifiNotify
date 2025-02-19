@@ -1,0 +1,15 @@
+[Unit]
+Description=UniFi Access Notification Service
+After=network.target
+
+[Service]
+Type=simple
+User=unifinotify
+Group=unifinotify
+WorkingDirectory=/opt/unifinotify
+ExecStart=/usr/bin/python3 UnifiNotify.py listen --config
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
