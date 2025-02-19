@@ -28,7 +28,7 @@ class UnifiAccessWebhook:
             'Content-Type': 'application/json'
         }
 
-    def add_webhook(self, url, secret, events=None):
+    def add_webhook(self, url, events=None):
         """Add a new webhook endpoint"""
         endpoint = f"{self.host}:12445/api/v1/developer/webhooks/endpoints"
         
@@ -168,9 +168,9 @@ def list_webhooks(host, token, verify_ssl=True, verbose=False):
         for hook in response.get('data', []):
             print(f"ID: {hook.get('id')} - {hook.get('name')} -> {hook.get('endpoint')}")
 
-def add_webhook(host, token, url, secret, verify_ssl=True, verbose=False):
+def add_webhook(host, token, url, verify_ssl=True, verbose=False):
     webhook = UnifiAccessWebhook(host, token, verify_ssl=verify_ssl)
-    response = webhook.add_webhook(url, secret)
+    response = webhook.add_webhook(url)
     if verbose:
         print(json.dumps(response, indent=2))
     else:
@@ -213,8 +213,8 @@ def main():
                        help='Disable SSL certificate verification')
     parser.add_argument('-v', '--verbose', action='store_true',
                        help='Show detailed JSON output')
-    parser.add_argument('--config', action='store_true',
-                       help='Use settings.json for configuration')
+    parser.add_argument('--config', nargs='?', const=True, 
+                       help='Use settings.json for configuration. Optionally specify config file path')
 
     subparsers = parser.add_subparsers(dest='command', required=True)
 
@@ -224,7 +224,6 @@ def main():
     # Add command
     add_parser = subparsers.add_parser('add', help='Add a new webhook')
     add_parser.add_argument('--url', required=True, help='Webhook URL')
-    add_parser.add_argument('--secret', required=True, help='Webhook secret')
 
     # Delete command
     delete_parser = subparsers.add_parser('delete', help='Delete a webhook')
@@ -232,12 +231,10 @@ def main():
 
     # Listen command
     listen_parser = subparsers.add_parser('listen', help='Start webhook listener')
-    listen_parser.add_argument('--secret', required=True, help='Webhook secret for validation')
+    listen_parser.add_argument('--secret', help='Webhook secret for validation')
     listen_parser.add_argument('--port', type=int, default=8080, help='Port to listen on (default: 8080)')
-    listen_parser.add_argument('--pushover-user', required=True, 
-        help='Pushover user key (found on your Pushover dashboard at pushover.net)')
-    listen_parser.add_argument('--pushover-token', required=True, 
-        help='Pushover application token (create an application at pushover.net/apps/build)')
+    listen_parser.add_argument('--pushover-user', help='Pushover user key (found on your Pushover dashboard at pushover.net)')
+    listen_parser.add_argument('--pushover-token', help='Pushover application token (create an application at pushover.net/apps/build)')
 
     # Test command
     test_parser = subparsers.add_parser('test', help='Test push notification with JSON event file')
@@ -251,15 +248,30 @@ def main():
     # Load config if specified
     if args.config:
         try:
-            settings = load_config()
+            if isinstance(args.config, str):
+                with open(args.config, 'r') as f:
+                    settings = json.load(f)
+            else:
+                settings = load_config()
+
+            # Always load host and token for all commands
             if not args.host:
                 args.host = settings.get('unifi', {}).get('host')
             if not args.token:
                 args.token = settings.get('unifi', {}).get('token')
-            if not hasattr(args, 'pushover_user'):
-                args.pushover_user = settings.get('pushover', {}).get('user')
-            if not hasattr(args, 'pushover_token'):
-                args.pushover_token = settings.get('pushover', {}).get('token')
+
+            # Load additional settings only for commands that need them
+            if args.command in ['listen', 'test']:
+                if not hasattr(args, 'secret') or not args.secret:
+                    args.secret = settings.get('unifi', {}).get('webhookSecret')
+                if not hasattr(args, 'pushover_user') or not args.pushover_user:
+                    args.pushover_user = settings.get('pushover', {}).get('user')
+                if not hasattr(args, 'pushover_token') or not args.pushover_token:
+                    args.pushover_token = settings.get('pushover', {}).get('token')
+                # Override default port if specified in config
+                if not hasattr(args, 'port') or args.port == 8080:  # Only override if not specified or at default
+                    args.port = settings.get('unifi', {}).get('webhookPort', 8080)
+
         except Exception as e:
             print(f"Error loading settings.json: {e}", file=sys.stderr)
             sys.exit(1)
@@ -269,10 +281,17 @@ def main():
         if not args.host or not args.token:
             parser.error(f"The {args.command} command requires --host and --token arguments or --config with valid settings.json")
 
+    # Validate required arguments for listen command
+    if args.command == 'listen':
+        if not args.secret:
+            parser.error("listen command requires --secret argument or --config with webhookSecret")
+        if not args.pushover_user or not args.pushover_token:
+            parser.error("listen command requires --pushover-user and --pushover-token arguments or --config with pushover settings")
+
     if args.command == 'list':
         list_webhooks(args.host, args.token, args.verify_ssl, args.verbose)
     elif args.command == 'add':
-        add_webhook(args.host, args.token, args.url, args.secret, args.verify_ssl, args.verbose)
+        add_webhook(args.host, args.token, args.url, args.verify_ssl, args.verbose)
     elif args.command == 'delete':
         delete_webhook(args.host, args.token, args.webhook_id, args.verify_ssl, args.verbose)
     elif args.command == 'listen':
