@@ -277,12 +277,12 @@ def main():
             sys.exit(1)
 
     # Validate host and token are provided for commands that need them
-    if args.command in ['list', 'add', 'delete', 'listen']:
+    if args.command in ['list', 'add', 'delete', 'listen', 'test']:
         if not args.host or not args.token:
             parser.error(f"The {args.command} command requires --host and --token arguments or --config with valid settings.json")
 
     # Validate required arguments for listen command
-    if args.command == 'listen':
+    if args.command in ['listen', 'test']:
         if not args.secret:
             parser.error("listen command requires --secret argument or --config with webhookSecret")
         if not args.pushover_user or not args.pushover_token:
@@ -294,25 +294,20 @@ def main():
         add_webhook(args.host, args.token, args.url, args.verify_ssl, args.verbose)
     elif args.command == 'delete':
         delete_webhook(args.host, args.token, args.webhook_id, args.verify_ssl, args.verbose)
-    elif args.command == 'listen':
+    elif args.command in ['listen', 'test']:
         listener = WebhookListener(
             args.secret, 
             args.port,
             pushover_user=args.pushover_user,
-            pushover_token=args.pushover_token
-        )
-        print(f"Starting webhook listener on port {args.port}")
-        listener.start()
-    elif args.command == 'test':
-        listener = WebhookListener(
-            'test-secret',  # dummy secret for test mode
-            8080,  # dummy port for test mode
-            pushover_user=args.pushover_user,
             pushover_token=args.pushover_token,
             test_file=args.testfile
         )
-        print("Running in test mode")
-        listener.test_mode()
+        print(f"Starting webhook listener on port {args.port}")
+        if args.command == 'listen':
+            listener.start()
+        elif args.command == 'test':
+            listener.test_mode()
+
 
 if __name__ == '__main__':
     main() 
