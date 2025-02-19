@@ -213,6 +213,8 @@ def main():
                        help='Disable SSL certificate verification')
     parser.add_argument('-v', '--verbose', action='store_true',
                        help='Show detailed JSON output')
+    parser.add_argument('--config', action='store_true',
+                       help='Use settings.json for configuration')
 
     subparsers = parser.add_subparsers(dest='command', required=True)
 
@@ -246,27 +248,26 @@ def main():
 
     args = parser.parse_args()
 
-    # If config flag is set, try to load settings.json
-    if args.command == 'test' and args.config:
+    # Load config if specified
+    if args.config:
         try:
             settings = load_config()
-            if not args.pushover_user:
+            if not args.host:
+                args.host = settings.get('unifi', {}).get('host')
+            if not args.token:
+                args.token = settings.get('unifi', {}).get('token')
+            if not hasattr(args, 'pushover_user'):
                 args.pushover_user = settings.get('pushover', {}).get('user')
-            if not args.pushover_token:
+            if not hasattr(args, 'pushover_token'):
                 args.pushover_token = settings.get('pushover', {}).get('token')
         except Exception as e:
             print(f"Error loading settings.json: {e}", file=sys.stderr)
             sys.exit(1)
 
-    # Validate Pushover credentials for test command
-    if args.command == 'test':
-        if not args.pushover_user or not args.pushover_token:
-            parser.error("Test command requires either --pushover-user and --pushover-token arguments or --config flag")
-
     # Validate host and token are provided for commands that need them
     if args.command in ['list', 'add', 'delete', 'listen']:
         if not args.host or not args.token:
-            parser.error(f"The {args.command} command requires --host and --token")
+            parser.error(f"The {args.command} command requires --host and --token arguments or --config with valid settings.json")
 
     if args.command == 'list':
         list_webhooks(args.host, args.token, args.verify_ssl, args.verbose)
