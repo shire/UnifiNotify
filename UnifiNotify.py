@@ -192,7 +192,7 @@ def load_config():
     config_paths = [
         '.vscode/settings.json',                    # Local development
         '/opt/unifinotify/settings.json',          # Service installation
-        os.path.expanduser('~/settings.json')  # User home
+        os.path.dirname(os.path.realpath(__file__)) + '/settings.json'  # Script directory
     ]
     
     for path in config_paths:
