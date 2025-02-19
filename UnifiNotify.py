@@ -207,39 +207,42 @@ def load_config():
 
 def main():
     parser = argparse.ArgumentParser(description='UniFi Access Webhook Manager')
-    parser.add_argument('--host', help='UniFi Access host URL')
-    parser.add_argument('--token', help='UniFi Access API token')
-    parser.add_argument('--no-verify-ssl', action='store_false', dest='verify_ssl', 
-                       help='Disable SSL certificate verification')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                       help='Show detailed JSON output')
-    parser.add_argument('--config', nargs='?', const=True, 
-                       help='Use settings.json for configuration. Optionally specify config file path')
+    
+    # Move global arguments to parent parser
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--config', nargs='?', const=True, 
+                           help='Use settings.json for configuration. Optionally specify config file path')
+    parent_parser.add_argument('--host', help='UniFi Access host URL')
+    parent_parser.add_argument('--token', help='UniFi Access API token')
+    parent_parser.add_argument('--no-verify-ssl', action='store_false', dest='verify_ssl', 
+                           help='Disable SSL certificate verification')
+    parent_parser.add_argument('-v', '--verbose', action='store_true',
+                           help='Show detailed JSON output')
 
+    # Create subparsers with parent
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # List command
-    list_parser = subparsers.add_parser('list', help='List existing webhooks')
+    list_parser = subparsers.add_parser('list', help='List existing webhooks', parents=[parent_parser])
 
     # Add command
-    add_parser = subparsers.add_parser('add', help='Add a new webhook')
+    add_parser = subparsers.add_parser('add', help='Add a new webhook', parents=[parent_parser])
     add_parser.add_argument('--url', required=True, help='Webhook URL')
 
     # Delete command
-    delete_parser = subparsers.add_parser('delete', help='Delete a webhook')
+    delete_parser = subparsers.add_parser('delete', help='Delete a webhook', parents=[parent_parser])
     delete_parser.add_argument('webhook_id', help='ID of webhook to delete')
 
     # Listen command
-    listen_parser = subparsers.add_parser('listen', help='Start webhook listener')
+    listen_parser = subparsers.add_parser('listen', help='Start webhook listener', parents=[parent_parser])
     listen_parser.add_argument('--secret', help='Webhook secret for validation')
     listen_parser.add_argument('--port', type=int, default=8080, help='Port to listen on (default: 8080)')
     listen_parser.add_argument('--pushover-user', help='Pushover user key (found on your Pushover dashboard at pushover.net)')
     listen_parser.add_argument('--pushover-token', help='Pushover application token (create an application at pushover.net/apps/build)')
 
     # Test command
-    test_parser = subparsers.add_parser('test', help='Test push notification with JSON event file')
+    test_parser = subparsers.add_parser('test', help='Test push notification with JSON event file', parents=[parent_parser])
     test_parser.add_argument('--testfile', required=True, help='JSON file containing test webhook data')
-    test_parser.add_argument('--config', help='Use VS Code settings.json file for configuration')
     test_parser.add_argument('--pushover-user', help='Pushover user key (found on your Pushover dashboard at pushover.net)')
     test_parser.add_argument('--pushover-token', help='Pushover application token (create an application at pushover.net/apps/build)')
 
@@ -295,6 +298,7 @@ def main():
     elif args.command == 'delete':
         delete_webhook(args.host, args.token, args.webhook_id, args.verify_ssl, args.verbose)
     elif args.command in ['listen', 'test']:
+        if not hasattr(args, 'testfile'): args.testfile=None
         listener = WebhookListener(
             args.secret, 
             args.port,
